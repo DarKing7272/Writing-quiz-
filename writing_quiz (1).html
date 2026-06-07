@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Writing MCQ Quiz - Prepared by Maimoon Kathem</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2canvas for certificate download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* Custom animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        @keyframes confetti { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(-200px) rotate(720deg); opacity: 0; } }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        .slide-in { animation: slideIn 0.4s ease-out; }
+        .pulse { animation: pulse 0.5s ease-in-out; }
+        .shake { animation: shake 0.3s ease-in-out; }
+        /* Gradient background */
+        .bg-main { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); }
+        /* Card glass effect */
+        .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        /* Option button styles */
+        .option-btn { transition: all 0.3s ease; border: 2px solid rgba(255,255,255,0.15); }
+        .option-btn:hover:not(.disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.3); }
+        .option-btn.correct { background: linear-gradient(135deg, #059669, #10b981) !important; border-color: #10b981 !important; color: white !important; }
+        .option-btn.wrong { background: linear-gradient(135deg, #dc2626, #ef4444) !important; border-color: #ef4444 !important; color: white !important; }
+        .option-btn.disabled { pointer-events: none; opacity: 0.7; }
+        .option-btn.correct.disabled { opacity: 1; }
+        /* Progress bar */
+        .progress-fill { transition: width 0.5s ease; }
+        /* Certificate styling */
+        .certificate { background: linear-gradient(135deg, #fef3c7, #fde68a, #fef3c7); border: 8px double #b45309; font-family: 'Georgia', serif; }
+        /* Timer pulse */
+        .timer-warning { animation: pulse 1s infinite; color: #ef4444; }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-main min-h-screen text-white">
+
+<!-- ===================== CONFIGURATION ===================== -->
+<script>
+// =============================================
+// TELEGRAM BOT CONFIGURATION - UPDATE THESE!
+// =============================================
+const BOT_TOKEN = "8635249178:AAF6HrZDFZ7E8TJRqaimW0c5tOgfsXZfFNE";
+const CHAT_ID = "1367857381";
+// =============================================
+</script>
+
+<!-- ===================== WELCOME SCREEN ===================== -->
+<div id="welcomeScreen" class="min-h-screen flex items-center justify-center p-4">
+    <div class="glass rounded-2xl p-8 max-w-lg w-full fade-in text-center">
+        <div class="mb-6">
+            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold shadow-lg shadow-blue-500/30">W</div>
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Writing MCQ Quiz</h1>
+            <p class="text-slate-400 mt-2 text-sm">Prepared by <span class="text-amber-400 font-semibold">Maimoon Kathem</span></p>
+        </div>
+
+        <!-- Last result display -->
+        <div id="lastResult" class="hidden mb-6 p-4 rounded-xl bg-slate-800/50 border border-slate-700">
+            <p class="text-slate-300 text-sm"><span class="text-slate-500">Last Result:</span> <span id="lastResultText" class="text-white font-medium"></span></p>
+        </div>
+
+        <!-- Resume prompt -->
+        <div id="resumePrompt" class="hidden mb-6 p-4 rounded-xl bg-amber-900/30 border border-amber-700/50">
+            <p class="text-amber-300 text-sm mb-3">You have an unfinished quiz! Would you like to continue?</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="resumeQuiz()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-sm font-medium transition-all">Continue</button>
+                <button onclick="startFresh()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-all">Start New</button>
+            </div>
+        </div>
+
+        <!-- Name input -->
+        <div class="mb-4 text-left">
+            <label class="block text-slate-300 text-sm mb-2 font-medium">Student Name</label>
+            <input type="text" id="studentName" placeholder="Enter your name..." class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-600 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+        </div>
+
+        <!-- Number of questions selector -->
+        <div class="mb-4 text-left">
+            <label class="block text-slate-300 text-sm mb-2 font-medium">Number of Questions</label>
+            <select id="numQuestions" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-600 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                <option value="10">10 Questions</option>
+                <option value="20">20 Questions</option>
+                <option value="30">30 Questions</option>
+                <option value="40">40 Questions</option>
+                <option value="50">50 Questions</option>
+                <option value="60">60 Questions</option>
+                <option value="70">70 Questions</option>
+                <option value="80">80 Questions</option>
+                <option value="90">90 Questions</option>
+                <option value="100" selected>100 Questions (All)</option>
+            </select>
+        </div>
+
+        <!-- Subject display -->
+        <div class="mb-6 text-left">
+            <label class="block text-slate-300 text-sm mb-2 font-medium">Subject</label>
+            <div class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-600 text-slate-300">Writing Skills</div>
+        </div>
+
+        <button onclick="startQuiz()" class="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-lg transition-all shadow-lg shadow-blue-600/30 hover:shadow-blue-500/40 hover:-translate-y-0.5">
+            Start Quiz
+        </button>
+    </div>
+</div>
+
+<!-- ===================== QUIZ SCREEN ===================== -->
+<div id="quizScreen" class="hidden min-h-screen p-4">
+    <div class="max-w-2xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4 fade-in">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold">W</div>
+                <div>
+                    <p class="text-white font-semibold text-sm">Writing MCQ Quiz</p>
+                    <p class="text-slate-400 text-xs">by Maimoon Kathem</p>
+                </div>
+            </div>
+            <!-- Timer -->
+            <div class="flex items-center gap-2 glass px-4 py-2 rounded-full">
+                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span id="timer" class="text-blue-400 font-mono text-sm font-bold">00:00</span>
+            </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="mb-6 fade-in">
+            <div class="flex justify-between text-sm mb-2">
+                <span class="text-slate-400">Question <span id="currentQ" class="text-white font-bold">1</span> of <span id="totalQ" class="text-white font-bold">10</span></span>
+                <span class="text-slate-400">Score: <span id="scoreDisplay" class="text-green-400 font-bold">0</span></span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                <div id="progressBar" class="progress-fill h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Question Card -->
+        <div id="questionCard" class="glass rounded-2xl p-6 mb-4 slide-in">
+            <p id="questionText" class="text-lg font-medium text-white leading-relaxed mb-6"></p>
+            <div id="optionsContainer" class="space-y-3"></div>
+        </div>
+
+        <!-- Next button -->
+        <div class="text-center">
+            <button id="nextBtn" onclick="nextQuestion()" class="hidden px-8 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold transition-all shadow-lg hover:-translate-y-0.5">
+                Next Question &rarr;
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== RESULT SCREEN ===================== -->
+<div id="resultScreen" class="hidden min-h-screen p-4 flex items-center justify-center">
+    <div class="max-w-lg w-full">
+        <!-- Result Card -->
+        <div class="glass rounded-2xl p-8 text-center fade-in mb-6">
+            <div id="resultEmoji" class="text-6xl mb-4"></div>
+            <h2 class="text-2xl font-bold mb-2">Quiz Complete!</h2>
+            <p id="resultName" class="text-slate-400 mb-6"></p>
+
+            <!-- Score circle -->
+            <div class="w-32 h-32 mx-auto mb-6 rounded-full border-4 border-blue-500 flex items-center justify-center bg-blue-500/10">
+                <div>
+                    <span id="resultScore" class="text-3xl font-bold text-blue-400"></span>
+                    <span id="resultTotal" class="text-slate-400 text-lg"></span>
+                </div>
+            </div>
+
+            <!-- Details -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-slate-800/50 rounded-xl p-3">
+                    <p class="text-slate-400 text-xs">Subject</p>
+                    <p class="text-white font-semibold">Writing Skills</p>
+                </div>
+                <div class="bg-slate-800/50 rounded-xl p-3">
+                    <p class="text-slate-400 text-xs">Time Taken</p>
+                    <p id="resultTime" class="text-white font-semibold"></p>
+                </div>
+                <div class="bg-green-900/30 rounded-xl p-3">
+                    <p class="text-green-400 text-xs">Correct</p>
+                    <p id="resultCorrect" class="text-green-400 font-bold text-lg"></p>
+                </div>
+                <div class="bg-red-900/30 rounded-xl p-3">
+                    <p class="text-red-400 text-xs">Wrong</p>
+                    <p id="resultWrong" class="text-red-400 font-bold text-lg"></p>
+                </div>
+            </div>
+
+            <!-- Wrong answers list -->
+            <div id="wrongAnswersSection" class="hidden mb-6 text-left">
+                <p class="text-red-400 font-semibold mb-2 text-sm">Wrong Answers:</p>
+                <div id="wrongAnswersList" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="space-y-3">
+                <button onclick="sendToTelegram()" id="telegramBtn" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-all flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                    Send Result to Telegram
+                </button>
+                <button onclick="showCertificate()" class="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold transition-all flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                    View Certificate
+                </button>
+                <button onclick="restartQuiz()" class="w-full py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold transition-all">
+                    Take Quiz Again
+                </button>
+            </div>
+
+            <!-- Telegram send status -->
+            <div id="telegramStatus" class="hidden mt-4 p-3 rounded-xl text-sm font-medium"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== CERTIFICATE SCREEN ===================== -->
+<div id="certificateScreen" class="hidden min-h-screen p-4">
+    <div class="max-w-2xl mx-auto">
+        <!-- Back button -->
+        <button onclick="hideCertificate()" class="mb-4 flex items-center gap-2 text-slate-400 hover:text-white transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            Back to Results
+        </button>
+
+        <!-- Certificate -->
+        <div id="certificateDiv" class="certificate rounded-2xl p-8 text-center shadow-2xl fade-in">
+            <div class="mb-2">
+                <p class="text-amber-800 text-xs uppercase tracking-widest font-bold">Prepared by Maimoon Kathem</p>
+            </div>
+            <div class="w-24 h-1 bg-amber-600 mx-auto mb-6 rounded-full"></div>
+            <h1 class="text-3xl font-bold text-amber-900 mb-2" style="font-family: Georgia, serif;">Certificate of Completion</h1>
+            <div class="w-24 h-1 bg-amber-600 mx-auto mb-8 rounded-full"></div>
+            <p class="text-amber-800 text-sm mb-2">This is to certify that</p>
+            <p id="certName" class="text-2xl font-bold text-amber-900 mb-4" style="font-family: Georgia, serif;"></p>
+            <p class="text-amber-800 text-sm mb-2">has successfully completed the</p>
+            <p id="certSubject" class="text-xl font-semibold text-amber-900 mb-4" style="font-family: Georgia, serif;">Writing Skills</p>
+            <p class="text-amber-800 text-sm mb-2">Quiz with a score of</p>
+            <p id="certScore" class="text-4xl font-bold text-amber-900 mb-6" style="font-family: Georgia, serif;"></p>
+            <div class="flex justify-between items-end mt-8">
+                <div class="text-left">
+                    <div class="w-32 h-0.5 bg-amber-800 mb-1"></div>
+                    <p class="text-amber-700 text-xs">Date</p>
+                    <p id="certDate" class="text-amber-900 text-sm font-semibold"></p>
+                </div>
+                <div class="text-right">
+                    <div class="w-32 h-0.5 bg-amber-800 mb-1"></div>
+                    <p class="text-amber-700 text-xs">Instructor</p>
+                    <p class="text-amber-900 text-sm font-semibold">Maimoon Kathem</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Download button -->
+        <div class="text-center mt-6">
+            <button onclick="downloadCertificate()" class="px-8 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold transition-all shadow-lg shadow-amber-600/30 flex items-center gap-2 mx-auto">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Download Certificate
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== MAIN JAVASCRIPT ===================== -->
+<script>
+// ============================================================
+// QUESTIONS DATABASE - 100 Writing MCQ Questions
+// Prepared by Maimoon Kathem
+// ============================================================
+const ALL_QUESTIONS = [
+    {q:"What is a \"paragraph\"?", o:["A single sentence","A section of writing starting on a new line with several sentences","The title of a story","A group of words without a verb"], c:1},
+    {q:"The empty space at the side of a page is called the", o:["Font","Indent","Margin","Spacing"], c:2},
+    {q:"Which term describes a style with two blank lines between each line of text?", o:["Single spacing","Triple spacing","Double line spacing","Margin spacing"], c:2},
+    {q:"To \"indent\" means to", o:["Start a paragraph further in from the edge of the page","Write in a larger font","Put a title at the top","Correct spelling errors"], c:0},
+    {q:"The name given to a piece of writing is the", o:["Font","Title","Margin","Paragraph"], c:1},
+    {q:"A \"font\" refers to", o:["The space at the side of a page","A set of letters in one size and style","The main idea of a paragraph","The final step of writing"], c:1},
+    {q:"Where does a paragraph typically start?", o:["On the same line as the previous one","On a new line","In the middle of a sentence","Only at the top of the page"], c:1},
+    {q:"Formatting and layout terms are considered", o:["Basic terms of writing","Only for computer science","Part of the prewriting stage","Types of sentences"], c:0},
+    {q:"Double line spacing leaves how many blank lines between text?", o:["One","Two","Three","None"], c:1},
+    {q:"In formatting, the \"edge of the page\" is relevant to defining an", o:["Indent","Exclamation mark","Opinion","Brainstorm"], c:0},
+    {q:"Process writing focuses on writing as a", o:["Finished product only","Series of steps leading to a product","Single draft","List of vocabulary"], c:1},
+    {q:"Which stage involves brainstorming and gathering ideas?", o:["Drafting","Editing","Prewriting","Publishing"], c:2},
+    {q:"What happens during the \"Drafting\" stage?", o:["Correcting punctuation","Putting ideas into sentences and paragraphs","Sharing the work with an audience","Enhancing clarity"], c:1},
+    {q:"The goal of \"Revising\" is to", o:["Check for spelling errors","Enhance clarity and structure","Brainstorm new topics","Print the final copy"], c:1},
+    {q:"Which step involves correcting grammar and punctuation?", o:["Prewriting","Drafting","Editing","Publishing"], c:2},
+    {q:"\"Publishing\" is the stage where the writer", o:["Brainstorms ideas","Shares the work with an audience","Changes the structure","Writes the first draft"], c:1},
+    {q:"What is the first step in the writing process?", o:["Drafting","Prewriting","Editing","Revising"], c:1},
+    {q:"Which stage focuses on organizing thoughts before writing?", o:["Prewriting","Publishing","Editing","Spacing"], c:0},
+    {q:"What is corrected during the Editing stage?", o:["The main idea","Brainstorming lists","Grammar, punctuation, and spelling","The audience"], c:2},
+    {q:"Sharing a piece of writing in digital form is part of", o:["Prewriting","Drafting","Publishing","Revising"], c:2},
+    {q:"A sentence is a group of words that expresses a", o:["Phrase","Complete idea","Fragment","Title"], c:1},
+    {q:"In English, a complete sentence needs which two parts?", o:["A margin and a title","A subject and a predicate","A font and a size","Two nouns"], c:1},
+    {q:"What is a \"predicate\"?", o:["A noun or pronoun","A verb","A group of sentences","An exclamation mark"], c:1},
+    {q:"A \"subject\" in a sentence can be a", o:["Verb","Noun or pronoun","Punctuation mark","New line"], c:1},
+    {q:"Groups of words that do not make complete sentences are called", o:["Paragraphs","Phrases","Subjects","Predicates"], c:1},
+    {q:"Sentences in a paragraph must start with a", o:["Small letter","Capital letter","Number","Space"], c:1},
+    {q:"Which punctuation mark is used to end a sentence?", o:["Full stop (.)","Question mark (?)","Exclamation mark (!)","All of the above"], c:3},
+    {q:"In academic writing, you should NOT use which punctuation too often?", o:["Full stop","Question mark","Exclamation mark","Comma"], c:2},
+    {q:"How many exclamation marks should be used at the end of a sentence in academic writing?", o:["Two","As many as possible","Never more than one","None at all"], c:2},
+    {q:"\"She sits.\" is an example of a", o:["Phrase","Complete sentence","Paragraph","Title"], c:1},
+    {q:"A paragraph should be about", o:["Many different ideas","One topic","Two opposing stories","Just the title"], c:1},
+    {q:"In a strong paragraph, every sentence is about", o:["A new idea","The same topic","The publishing process","Grammar rules"], c:1},
+    {q:"The \"main idea\" of a paragraph is the", o:["First word","Most important idea","List of references","Last sentence only"], c:1},
+    {q:"In academic writing, which sentence directly tells the reader the main idea?", o:["Supporting sentence","Topic sentence","Closing sentence","Editing sentence"], c:1},
+    {q:"Sentences that give more information about the topic are called", o:["Topic sentences","Supporting sentences","Phrases","Indents"], c:1},
+    {q:"A paragraph can be used to", o:["Give information","Tell an opinion","Tell a short story","All of the above"], c:3},
+    {q:"Supporting sentences give more", o:["Margins","Information about the topic","Capital letters","New topics"], c:1},
+    {q:"Every sentence in a strong paragraph explains the", o:["Writer's main idea","Definition of a font","Publishing date","Margins of the page"], c:0},
+    {q:"Which of the following could be a sentence if punctuated correctly?", o:["After school","We love writing in English","The man in the striped suit","At three o'clock"], c:1},
+    {q:"Academic writing compared to casual writing is", o:["More likely to use exclamation marks","Less likely to use exclamation marks","Not organized into paragraphs","Only one sentence long"], c:1},
+    {q:"A group of words like \"graduated in May\" is missing a subject and is therefore a", o:["Complete sentence","Phrase","Paragraph","Topic sentence"], c:1},
+    {q:"What does a predicate usually contain?", o:["A noun","A verb","A capital letter","A margin"], c:1},
+    {q:"\"The company offered me a part-time job.\" is the correct punctuation for", o:["Writing to friends","Writing in school (academic)","Prewriting","A phrase"], c:1},
+    {q:"The main idea is also known as the", o:["Supporting idea","Most important idea","Publishing idea","Drafting idea"], c:1},
+    {q:"A good topic sentence should include", o:["Many different topics","One clear topic","Only facts","No opinions"], c:1},
+    {q:"Which of the following is an example of a strong topic sentence because it expresses an opinion?", o:["I have been studying karate","School starts at 8:30 a.m.","Studying karate has given me strength and self-confidence","Australia is a country"], c:2},
+    {q:"A topic sentence that is \"too broad\" means", o:["It is just a fact","It has too much to write about for one paragraph","It is too short","It has no adjectives"], c:1},
+    {q:"\"Australia is an interesting country\" is considered a weak topic sentence because it is", o:["Too narrow","Too broad","A fact","Too long"], c:1},
+    {q:"A topic sentence that is \"too narrow\" is often", o:["An opinion","Just a fact","Very difficult to understand","About too many countries"], c:1},
+    {q:"Which of these is a weak topic sentence because it is too narrow?", o:["Getting ready for school is difficult","On my visit to Australia, I saw many unusual animals","School starts at 8:30 a.m.","I have a very best friend"], c:2},
+    {q:"A good topic sentence should NOT be", o:["Clear","An idea about the topic","Too broad or too narrow","At the beginning of a paragraph"], c:2},
+    {q:"Which conjunction is used to join related ideas that agree or go together?", o:["But","So","Or","And"], c:3},
+    {q:"\"But\" is used to join two ideas that are", o:["Exactly the same","Different or opposite","Both facts","Very long"], c:1},
+    {q:"Complete the sentence: \"She likes reading ____ writing.\"", o:["But","And","So","Because"], c:1},
+    {q:"Complete the sentence: \"I like coffee, ____ I prefer tea.\"", o:["And","But","Also","Too"], c:1},
+    {q:"Which sentence shows contrast or a surprising result?", o:["He is kind and helpful","I cleaned the room and cooked dinner","The exam was difficult, but I passed it","I sent my mother a card and called her"], c:2},
+    {q:"Which conjunction shows that the second idea is surprising or different from the first?", o:["And","But","Then","Also"], c:1},
+    {q:"\"He is kind ____ helpful.\" The best conjunction here is", o:["But","And","Yet","So"], c:1},
+    {q:"When joining two complete sentences with \"but\", you must always use a", o:["Period before but","Comma after but","Comma before but","Semicolon before but"], c:2},
+    {q:"When do you use a comma before \"and\" when joining two complete sentences?", o:["Always","Never","When the subjects of both sentences are written","Only when the sentence is very long"], c:2},
+    {q:"If you remove the subject of the second sentence when using \"and\", you should", o:["Use a comma","Not use a comma","Use a period","Use a capital letter"], c:1},
+    {q:"Which sentence is punctuated correctly?", o:["I like getting flowers but I don't like getting chocolates","I like getting flowers, but I don't like getting chocolates","I like getting flowers but, I don't like getting chocolates","I like getting flowers. But I don't like getting chocolates"], c:1},
+    {q:"Identify the correctly punctuated sentence using \"and.\"", o:["Shopping is expensive, and parking is hard to find","Shopping is expensive and, parking is hard to find","Shopping is expensive and parking, is hard to find","Shopping is expensive, and, parking is hard to find"], c:0},
+    {q:"Why is there no comma in \"These days people post paper cards and e-mail electronic cards\"?", o:["Because the sentence is short","Because \"and\" doesn't need commas","Because the subject \"people\" is not written a second time","Because it is a fact"], c:2},
+    {q:"Choose the correct version:", o:["I sent my mother a card, and called her","I sent my mother a card and called her","I sent my mother a card and, called her","I sent my mother a card. and called her"], c:1},
+    {q:"Which part of a paragraph tells the main idea?", o:["Supporting sentences","Concluding sentence","Topic sentence","Brainstorming list"], c:2},
+    {q:"What is the role of supporting sentences?", o:["To repeat the topic sentence","To develop the paragraph by adding more information","To brainstorm new topics","To join sentences with \"but\""], c:1},
+    {q:"When describing a place, \"descriptive details\" tell how a place", o:["Looks, sounds, smells, or feels","Is located on a map","Was built","Is named"], c:0},
+    {q:"Which of these adjectives describes how a place \"smells\"?", o:["Loud","Fragrant","Green","Humid"], c:1},
+    {q:"The word \"humid\" describes how a place", o:["Looks","Sounds","Feels","Smells"], c:2},
+    {q:"According to the descriptive vocabulary table, \"spicy\" can describe how a place", o:["Sounds and feels","Looks and smells","Only looks","Only smells"], c:1},
+    {q:"Which word is used to describe how a place \"sounds\"?", o:["Musical","Sweet","Sharp","Dark"], c:0},
+    {q:"What is brainstorming?", o:["Correcting grammar mistakes","Thinking of and writing down ideas that you can use","Writing a final draft","Reading a book"], c:1},
+    {q:"When making a brainstorming list, where should you write your topic?", o:["At the bottom of the page","In the middle of the sentence","At the top","On the back of the paper"], c:2},
+    {q:"During brainstorming, you should write", o:["Long, perfect sentences","Only one word","Single words or short phrases","Only \"good\" ideas"], c:2},
+    {q:"While brainstorming, should you worry if your ideas are \"good\" or \"bad\"?", o:["Yes, only write good ideas","No, write down every idea that comes to you","Yes, but only if you have time","Only if the teacher is watching"], c:1},
+    {q:"What is the process of going back to see which brainstormed ideas you can use?", o:["Brainstorming","List-making","Editing","Publishing"], c:2},
+    {q:"For brainstorming, it is recommended to use", o:["A small scrap of paper","A separate, whole sheet of paper","The margin of your notebook","A digital tablet only"], c:1},
+    {q:"After brainstorming, a writer needs to", o:["Throw the list away","Edit the list to choose useful ideas","Write the list again in alphabetical order","Give the list to a friend"], c:1},
+    {q:"What is a paragraph?", o:["A single sentence","A group of related sentences developing one main idea","A list of vocabulary words","A collection of different topics"], c:1},
+    {q:"How many main ideas should a good paragraph develop?", o:["One","Two","Three","As many as possible"], c:0},
+    {q:"Which part of a paragraph states the main idea directly?", o:["Supporting sentences","Concluding sentence","Topic sentence","The title"], c:2},
+    {q:"A good paragraph usually includes a topic sentence, supporting sentences, and a", o:["New idea","Concluding sentence","Word map","List of adjectives"], c:1},
+    {q:"A clear topic sentence helps the reader understand", o:["The author's name","Every detail in the book","What the paragraph will discuss","Only the last sentence"], c:2},
+    {q:"Which of these is a good example of a topic sentence?", o:["Regular exercise improves both physical health and mental well-being","He is tall","In March 1999","Thank you"], c:0},
+    {q:"Supporting sentences are used to", o:["Start a new paragraph","Give details, explanations, and examples","Introduce a completely new topic","Repeat the title only"], c:1},
+    {q:"\"He is kind and sensitive\" is an example of using ______ in supporting sentences.", o:["Physical appearance","Personality traits","Life experiences","Sense verbs"], c:1},
+    {q:"\"He is tall and strong\" is an example of describing", o:["Personality","Physical appearance","A word map","Capitalization rules"], c:1},
+    {q:"The purpose of a concluding sentence is to", o:["Close the paragraph","Introduce a new idea","Brainstorm","List names and places"], c:0},
+    {q:"A concluding sentence can ______ the topic sentence.", o:["Ignore","Restate","Delete","Contradict"], c:1},
+    {q:"Which of these can a concluding sentence do?", o:["Start a new story","State a completely new idea","Summarize the main idea","List 55 questions"], c:2},
+    {q:"A concluding sentence can also make a", o:["Capitalization error","Word map","Prediction connected to the topic","List of sense verbs"], c:2},
+    {q:"What should a concluding sentence NOT do?", o:["Restate the topic","Give advice","State a completely new idea","Summarize the paragraph"], c:2},
+    {q:"In the text about Jack Collins, sentence 1 is the", o:["Topic sentence","Supporting sentence","Concluding sentence","Brainstorming step"], c:0},
+    {q:"In the Jack Collins text, \"He was in prison for 15 years\" is a", o:["Topic sentence","Supporting sentence (life experience)","Concluding sentence","Capitalization rule"], c:1},
+    {q:"Which sentence from the Jack Collins text is the concluding sentence?", o:["Sentence 1","Sentence 4","Sentence 6","The last sentence"], c:3},
+    {q:"Supporting sentences should always ______ the topic sentence.", o:["Oppose","Support and explain","Be unrelated to","Be the first sentence of"], c:1},
+    {q:"If a topic sentence is about \"online learning\", the supporting sentences should be about", o:["Jack Collins","Physical exercise","Flexibility and accessibility of online study","David Beckham's children"], c:2},
+    {q:"A paragraph with a clear topic and supporting sentences is easier to", o:["Read and understand","Delete","Translate only","Ignore"], c:0},
+    {q:"Adjectives are used to describe", o:["Verbs and adverbs","Appearance and personality","Only places","Punctuation marks"], c:1}
+];
+
+// ============================================================
+// QUIZ STATE VARIABLES
+// ============================================================
+let quizQuestions = [];      // Questions for this quiz session
+let currentIndex = 0;        // Current question index
+let score = 0;               // Correct answers count
+let wrongAnswers = [];       // Array of wrong answer question numbers
+let studentName = '';        // Student name
+let startTime = 0;           // Quiz start timestamp
+let timerInterval = null;    // Timer interval reference
+let elapsedTime = 0;         // Elapsed time in seconds
+let answered = false;        // Whether current question is answered
+let selectedCount = 10;      // Number of questions selected
+let userAnswers = [];        // Track user answers for each question
+
+// ============================================================
+// UTILITY: Shuffle array (Fisher-Yates)
+// ============================================================
+function shuffleArray(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+// ============================================================
+// UTILITY: Create shuffled question with shuffled options
+// Ensures correct answer is always in a different position
+// ============================================================
+function prepareQuestion(qObj, qNum) {
+    const correctText = qObj.o[qObj.c];
+    // Shuffle the options
+    const shuffledOptions = shuffleArray(qObj.o);
+    const newCorrectIndex = shuffledOptions.indexOf(correctText);
+    return {
+        num: qNum,
+        question: qObj.q,
+        options: shuffledOptions,
+        correctIndex: newCorrectIndex
+    };
+}
+
+// ============================================================
+// TIMER: Format seconds to MM:SS
+// ============================================================
+function formatTime(seconds) {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
+
+// ============================================================
+// TIMER: Start the quiz timer
+// ============================================================
+function startTimer() {
+    startTime = Date.now() - (elapsedTime * 1000);
+    timerInterval = setInterval(() => {
+        elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+        document.getElementById('timer').textContent = formatTime(elapsedTime);
+    }, 1000);
+}
+
+// ============================================================
+// TIMER: Stop the quiz timer
+// ============================================================
+function stopTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+}
+
+// ============================================================
+// LOCAL STORAGE: Save quiz progress for resume feature
+// ============================================================
+function saveProgress() {
+    const progress = {
+        studentName: studentName,
+        selectedCount: selectedCount,
+        currentIndex: currentIndex,
+        score: score,
+        wrongAnswers: wrongAnswers,
+        elapsedTime: elapsedTime,
+        // Save the question indices and their shuffle states so we can restore
+        questionIndices: quizQuestions.map(q => q.num - 1),
+        userAnswers: userAnswers
+    };
+    localStorage.setItem('quizProgress', JSON.stringify(progress));
+}
+
+// ============================================================
+// LOCAL STORAGE: Load quiz progress
+// ============================================================
+function loadProgress() {
+    const data = localStorage.getItem('quizProgress');
+    return data ? JSON.parse(data) : null;
+}
+
+// ============================================================
+// LOCAL STORAGE: Clear quiz progress
+// ============================================================
+function clearProgress() {
+    localStorage.removeItem('quizProgress');
+}
+
+// ============================================================
+// LOCAL STORAGE: Save last result
+// ============================================================
+function saveResult(name, score, total, subject) {
+    const result = {
+        name: name,
+        score: `${score}/${total}`,
+        subject: subject,
+        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    };
+    localStorage.setItem('lastResult', JSON.stringify(result));
+}
+
+// ============================================================
+// LOCAL STORAGE: Load last result
+// ============================================================
+function loadLastResult() {
+    const data = localStorage.getItem('lastResult');
+    return data ? JSON.parse(data) : null;
+}
+
+// ============================================================
+// SHOW SCREEN: Switch between screens
+// ============================================================
+function showScreen(screenId) {
+    document.querySelectorAll('body > div').forEach(div => div.classList.add('hidden'));
+    document.getElementById(screenId).classList.remove('hidden');
+    window.scrollTo(0, 0);
+}
+
+// ============================================================
+// START QUIZ: Initialize and start the quiz
+// ============================================================
+function startQuiz() {
+    studentName = document.getElementById('studentName').value.trim();
+    if (!studentName) {
+        document.getElementById('studentName').classList.add('border-red-500');
+        document.getElementById('studentName').placeholder = 'Please enter your name!';
+        return;
+    }
+    document.getElementById('studentName').classList.remove('border-red-500');
+
+    selectedCount = parseInt(document.getElementById('numQuestions').value);
+
+    // Shuffle all questions and take the selected number
+    const shuffled = shuffleArray(ALL_QUESTIONS);
+    const selected = shuffled.slice(0, selectedCount);
+
+    // Prepare each question with shuffled options
+    quizQuestions = selected.map((q, i) => prepareQuestion(q, i + 1));
+
+    // Reset state
+    currentIndex = 0;
+    score = 0;
+    wrongAnswers = [];
+    elapsedTime = 0;
+    userAnswers = new Array(selectedCount).fill(null);
+
+    clearProgress();
+    showScreen('quizScreen');
+    startTimer();
+    renderQuestion();
+}
+
+// ============================================================
+// RESUME QUIZ: Continue from saved progress
+// ============================================================
+function resumeQuiz() {
+    const progress = loadProgress();
+    if (!progress) return startQuiz();
+
+    studentName = progress.studentName;
+    selectedCount = progress.selectedCount;
+
+    // Rebuild questions from saved indices
+    const indices = progress.questionIndices;
+    quizQuestions = indices.map((origIdx, i) => prepareQuestion(ALL_QUESTIONS[origIdx], i + 1));
+
+    currentIndex = progress.currentIndex;
+    score = progress.score;
+    wrongAnswers = progress.wrongAnswers;
+    elapsedTime = progress.elapsedTime;
+    userAnswers = progress.userAnswers || new Array(selectedCount).fill(null);
+
+    showScreen('quizScreen');
+    startTimer();
+    renderQuestion();
+}
+
+// ============================================================
+// START FRESH: Clear progress and start new quiz
+// ============================================================
+function startFresh() {
+    clearProgress();
+    document.getElementById('resumePrompt').classList.add('hidden');
+}
+
+// ============================================================
+// RENDER QUESTION: Display current question
+// ============================================================
+function renderQuestion() {
+    const q = quizQuestions[currentIndex];
+    answered = false;
+
+    // Update header info
+    document.getElementById('currentQ').textContent = currentIndex + 1;
+    document.getElementById('totalQ').textContent = selectedCount;
+    document.getElementById('scoreDisplay').textContent = score;
+    document.getElementById('progressBar').style.width = `${((currentIndex) / selectedCount) * 100}%`;
+
+    // Question text
+    document.getElementById('questionText').textContent = `${currentIndex + 1}. ${q.question}`;
+
+    // Options
+    const container = document.getElementById('optionsContainer');
+    container.innerHTML = '';
+
+    const letters = ['A', 'B', 'C', 'D'];
+    q.options.forEach((option, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn w-full text-left p-4 rounded-xl bg-slate-800/50 text-white font-medium flex items-center gap-3';
+        btn.innerHTML = `
+            <span class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold flex-shrink-0">${letters[idx]}</span>
+            <span class="flex-1">${option}</span>
+        `;
+        btn.onclick = () => selectAnswer(idx, btn);
+        container.appendChild(btn);
+    });
+
+    // Hide next button
+    document.getElementById('nextBtn').classList.add('hidden');
+
+    // Animate card
+    const card = document.getElementById('questionCard');
+    card.classList.remove('slide-in');
+    void card.offsetWidth; // Trigger reflow
+    card.classList.add('slide-in');
+}
+
+// ============================================================
+// SELECT ANSWER: Handle user's answer selection
+// ============================================================
+function selectAnswer(selectedIdx, btnEl) {
+    if (answered) return;
+    answered = true;
+
+    const q = quizQuestions[currentIndex];
+    const isCorrect = selectedIdx === q.correctIndex;
+
+    // Record answer
+    userAnswers[currentIndex] = selectedIdx;
+
+    // Update score
+    if (isCorrect) {
+        score++;
+        btnEl.classList.add('correct');
+    } else {
+        wrongAnswers.push(currentIndex + 1);
+        btnEl.classList.add('wrong', 'shake');
+        // Highlight the correct answer
+        const allBtns = document.querySelectorAll('#optionsContainer .option-btn');
+        allBtns[q.correctIndex].classList.add('correct');
+    }
+
+    // Disable all options
+    document.querySelectorAll('#optionsContainer .option-btn').forEach(btn => {
+        btn.classList.add('disabled');
+    });
+
+    // Update score display
+    document.getElementById('scoreDisplay').textContent = score;
+
+    // Show next button
+    const nextBtn = document.getElementById('nextBtn');
+    nextBtn.classList.remove('hidden');
+    nextBtn.textContent = currentIndex < selectedCount - 1 ? 'Next Question →' : 'See Results →';
+
+    // Save progress for resume feature
+    saveProgress();
+}
+
+// ============================================================
+// NEXT QUESTION: Move to next question or show results
+// ============================================================
+function nextQuestion() {
+    currentIndex++;
+    if (currentIndex >= selectedCount) {
+        finishQuiz();
+    } else {
+        renderQuestion();
+    }
+}
+
+// ============================================================
+// FINISH QUIZ: Complete the quiz and show results
+// ============================================================
+function finishQuiz() {
+    stopTimer();
+    clearProgress();
+
+    // Save result to localStorage
+    saveResult(studentName, score, selectedCount, 'Writing Skills');
+
+    // Update result screen
+    const percentage = Math.round((score / selectedCount) * 100);
+    let emoji = '';
+    if (percentage >= 90) emoji = '🏆';
+    else if (percentage >= 70) emoji = '🌟';
+    else if (percentage >= 50) emoji = '👍';
+    else emoji = '📚';
+
+    document.getElementById('resultEmoji').textContent = emoji;
+    document.getElementById('resultName').textContent = `Well done, ${studentName}!`;
+    document.getElementById('resultScore').textContent = score;
+    document.getElementById('resultTotal').textContent = `/${selectedCount}`;
+    document.getElementById('resultTime').textContent = formatTime(elapsedTime);
+    document.getElementById('resultCorrect').textContent = score;
+    document.getElementById('resultWrong').textContent = selectedCount - score;
+
+    // Wrong answers section
+    if (wrongAnswers.length > 0) {
+        document.getElementById('wrongAnswersSection').classList.remove('hidden');
+        document.getElementById('wrongAnswersList').innerHTML = wrongAnswers.map(n =>
+            `<span class="px-3 py-1 bg-red-900/40 text-red-300 rounded-full text-sm font-medium">Q${n}</span>`
+        ).join('');
+    } else {
+        document.getElementById('wrongAnswersSection').classList.add('hidden');
+    }
+
+    // Reset telegram button
+    document.getElementById('telegramBtn').disabled = false;
+    document.getElementById('telegramBtn').innerHTML = `
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+        Send Result to Telegram
+    `;
+    document.getElementById('telegramStatus').classList.add('hidden');
+
+    showScreen('resultScreen');
+}
+
+// ============================================================
+// TELEGRAM: Send result message to Telegram
+// ============================================================
+async function sendToTelegram() {
+    const btn = document.getElementById('telegramBtn');
+    const status = document.getElementById('telegramStatus');
+
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Sending...`;
+
+    // Format the message
+    const wrongStr = wrongAnswers.length > 0 ? wrongAnswers.join(', ') : 'None';
+    const message = `📊 *Quiz Result*\n👤 Name: ${studentName}\n📚 Subject: Writing Skills\n🎯 Score: ${score}/${selectedCount}\n❌ Wrong Answers: ${wrongStr}\n⏱️ Time: ${elapsedTime} seconds`;
+
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: CHAT_ID,
+                text: message,
+                parse_mode: 'Markdown'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.ok) {
+            status.classList.remove('hidden', 'bg-red-900/30', 'text-red-400');
+            status.classList.add('bg-green-900/30', 'text-green-400');
+            status.textContent = '✅ Result sent successfully to Telegram!';
+            btn.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> Sent ✓`;
+        } else {
+            throw new Error(data.description || 'Failed to send');
+        }
+    } catch (error) {
+        status.classList.remove('hidden', 'bg-green-900/30', 'text-green-400');
+        status.classList.add('bg-red-900/30', 'text-red-400');
+        status.textContent = `❌ Error: ${error.message}. Try again.`;
+        btn.disabled = false;
+        btn.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> Retry Send`;
+    }
+}
+
+// ============================================================
+// CERTIFICATE: Show certificate screen
+// ============================================================
+function showCertificate() {
+    const now = new Date();
+    document.getElementById('certName').textContent = studentName;
+    document.getElementById('certScore').textContent = `${score}/${selectedCount}`;
+    document.getElementById('certDate').textContent = now.toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+    });
+    showScreen('certificateScreen');
+}
+
+// ============================================================
+// CERTIFICATE: Hide certificate screen
+// ============================================================
+function hideCertificate() {
+    showScreen('resultScreen');
+}
+
+// ============================================================
+// CERTIFICATE: Download certificate as PNG using html2canvas
+// ============================================================
+async function downloadCertificate() {
+    const certDiv = document.getElementById('certificateDiv');
+    try {
+        const canvas = await html2canvas(certDiv, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#fde68a'
+        });
+        const link = document.createElement('a');
+        link.download = `Certificate_${studentName.replace(/\s+/g, '_')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    } catch (err) {
+        alert('Error generating certificate: ' + err.message);
+    }
+}
+
+// ============================================================
+// RESTART QUIZ: Go back to welcome screen
+// ============================================================
+function restartQuiz() {
+    stopTimer();
+    clearProgress();
+    showScreen('welcomeScreen');
+    checkLastResult();
+}
+
+// ============================================================
+// ON PAGE LOAD: Check for saved progress and last result
+// ============================================================
+function checkLastResult() {
+    // Show last result if available
+    const lastResult = loadLastResult();
+    if (lastResult) {
+        document.getElementById('lastResult').classList.remove('hidden');
+        document.getElementById('lastResultText').textContent =
+            `${lastResult.name} - ${lastResult.score} - ${lastResult.subject} - ${lastResult.date}`;
+    } else {
+        document.getElementById('lastResult').classList.add('hidden');
+    }
+
+    // Check for resume-able progress
+    const progress = loadProgress();
+    if (progress) {
+        document.getElementById('resumePrompt').classList.remove('hidden');
+        document.getElementById('studentName').value = progress.studentName;
+        document.getElementById('numQuestions').value = progress.selectedCount;
+    } else {
+        document.getElementById('resumePrompt').classList.add('hidden');
+    }
+}
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', checkLastResult);
+
+// Save progress when user leaves the page mid-quiz
+window.addEventListener('beforeunload', (e) => {
+    if (!document.getElementById('quizScreen').classList.contains('hidden') && answered) {
+        saveProgress();
+    }
+});
+</script>
+
+</body>
+</html>
